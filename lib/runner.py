@@ -2,12 +2,14 @@ import json
 import subprocess
 import sys
 import tempfile
+import os
 
 from lxml import etree
 
 from command import Command
 from issue_formatter import IssueFormatter
 from workspace import Workspace
+import rediswq
 
 CONFIG_FILE_PATH = '/config.json'
 
@@ -28,11 +30,40 @@ class Runner:
         if not len(workspace_files) > 0:
             return
 
+        plugin_config = config.get('config', {})
+
+        wq_url = os.getenv('CODE_ANALYSIS_WORK_QUEUE_URL')
+        wq_name = os.getenv('CODE_ANALYSIS_WORK_QUEUE_NAME')
+
+        if wq_url is not None and wq_name is not None:
+            self._runAsQueueWorker(plugin_config, workspace, wq_url, wq_name)
+            return
+
         self._print_debug('[cppcheck] analyzing {} files'.format(len(workspace_files)))
 
         file_list_path = self._build_file_list(workspace_files)
-        plugin_config = config.get('config', {})
-        command = Command(plugin_config, file_list_path).build()
+
+        self._runOnce(plugin_config, workspace, file_list_path, "file_list_path")
+
+
+    def _runAsQueueWorker(self, plugin_config, workspace, wq_url, wq_name):
+        q = rediswq.RedisWQ(name = wq_name, host = wq_url)
+        self._print_debug("[cppcheck_wq] Worker with sessionID: " +  q.sessionID())
+        self._print_debug("[cppcheck_wq] Initial queue state: empty=" + str(q.empty()))
+        while not q.empty():
+            item = q.lease(lease_secs=10, block=True, timeout=2) 
+            if item is not None:
+                itemstr = item.decode("utf-8")
+                self._print_debug("[cppcheck_wq] Working on " + itemstr)
+                self._runOnce(plugin_config, workspace, itemstr, "checked_file") # actual work 
+                q.complete(item)
+        else:
+            self._print_debug("[cppcheck_wq] Waiting for work")
+        self._print_debug("[cppcheck_wq] Queue empty, exiting")
+    
+    def _runOnce(self, plugin_config, workspace, file_path, file_path_type):
+
+        command = Command(plugin_config, file_path, file_path_type).build()
 
         self._print_debug('[cppcheck] command: {}'.format(command))
 

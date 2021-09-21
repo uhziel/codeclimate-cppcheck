@@ -6,7 +6,9 @@ WORKDIR /usr/src/app
 RUN apk --update add --no-cache --upgrade \
       cppcheck \
       python3 \
+      py3-pip \
       py3-lxml && \
+    pip3 install redis && \
     rm -rf /usr/share/ri && \
     adduser -u 9000 -D -s /bin/false app
 

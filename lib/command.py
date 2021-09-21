@@ -1,8 +1,9 @@
 class Command:
     """Returns command line arguments by parsing codeclimate config file."""
-    def __init__(self, config, file_list_path):
+    def __init__(self, config, file_list_path, file_path_type):
         self.config = config
         self.file_list_path = file_list_path
+        self.file_path_type = file_path_type
 
     def build(self):
         command = ['cppcheck']
@@ -47,6 +48,9 @@ class Command:
             command.append('--inline-suppr')
 
         command.extend(['--xml', '--xml-version=2'])
-        command.append('--file-list={}'.format(self.file_list_path))
+        if self.file_path_type == 'checked_file':
+            command.append(self.file_list_path)
+        else:
+            command.append('--file-list={}'.format(self.file_list_path))
 
         return command
