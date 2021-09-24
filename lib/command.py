@@ -49,7 +49,7 @@ class Command:
 
         command.extend(['--xml', '--xml-version=2'])
         if self.file_path_type == 'checked_file':
-            command.append(self.file_list_path)
+            command.append('--project-whitelist={}'.format(self.file_list_path))
         else:
             command.append('--file-list={}'.format(self.file_list_path))
 

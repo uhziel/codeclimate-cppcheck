@@ -55,7 +55,8 @@ class Runner:
             if item is not None:
                 itemstr = item.decode("utf-8")
                 self._print_debug("[cppcheck_wq] Working on " + itemstr)
-                self._runOnce(plugin_config, workspace, itemstr, "checked_file") # actual work 
+                file_list_path = self._build_file_list([itemstr])
+                self._runOnce(plugin_config, workspace, file_list_path, "checked_file") # actual work 
                 q.complete(item)
         else:
             self._print_debug("[cppcheck_wq] Waiting for work")
